@@ -36,21 +36,26 @@ async def main():
     print(f"sabotaging all_tasks[{sabotage_victim}]")
     all_tasks[sabotage_victim].cancel()
 
-    for task in asyncio.as_completed(all_tasks):
-        if task.done():
-            # print(f"task {task.get_name()} over")
-            try:
-                task.result()
-                success.append(task)
-                print(f"{task.get_name()} succeeded")
-            except asyncio.CancelledError:
-                cancelled.append(task)
-                print(f"{task.get_name()} was cancelled")
-            except Exception as e:
-                errored.append(task)
-                print(f"{task.get_name()} hit an error")
-            # active_tasks.remove(task)
-    await asyncio.gather(*tasks)
+    while True:
+        await asyncio.sleep(1)
+        for task in active_tasks[:]:
+            if task.done():
+                # print(f"task {task.get_name()} over")
+                try:
+                    task.result()
+                    success.append(task)
+                    print(f"{task.get_name()} succeeded")
+                except asyncio.CancelledError:
+                    cancelled.append(task)
+                    print(f"{task.get_name()} was cancelled")
+                except Exception as e:
+                    errored.append(task)
+                    print(f"{task.get_name()} hit an error")
+                active_tasks.remove(task)
+        if not active_tasks:
+            # it's been whittled down to an empty list
+            break
+    # await asyncio.gather(*tasks)
     print("main done")
     print(f"success: {[t.get_name() for t in success]}")
     print(f"cancelled: {[t.get_name() for t in cancelled]}")
