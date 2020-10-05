@@ -42,35 +42,26 @@ def schedule_fake_job(t):
     return asyncio.create_task(job(t), name=f"job({t})")
 
 def schedule_real_job(url):
-    return asyncio.create_task(download(url), name=f"job({url})")
+    return asyncio.create_task(download(url), name=f"download({url})")
 
 async def main():
     log_window.addstr("main\n")
     log_window.refresh()
-    with open("rosie-files.txt") as f:
+    with open("short-sweet.txt") as f:
         video_urls = [line.strip() for line in f.readlines()]
     all_tasks = [
             schedule_real_job(url) for url in video_urls
             ]
-    # all_tasks = [
-    #         schedule_fake_job(0.5),
-    #         schedule_fake_job(1),
-    #         schedule_fake_job(1.2),
-    #         schedule_fake_job(1.5),
-    #         schedule_fake_job(1.8),
-    #         schedule_fake_job(2.1),
-    #         schedule_fake_job(3),
-    #         schedule_fake_job(4),
-    #         schedule_fake_job(5),
-    #         ]
     active_tasks = all_tasks[:]
     success = []
     cancelled = []
     errored = []
 
-    for task in all_tasks:
-        status_window.addstr(f"{task.get_name()} ...\n")
-        pass
+    for index, task in enumerate(all_tasks):
+        status_window.addstr(index, 0, f"{task.get_name()}\n")
+        msg = "..."
+        status_window.insstr(index, curses.COLS - 3 - len(msg), msg)
+        # status_window.addstr(f"\n")
     status_window.refresh()
 
     # saboteur!
@@ -79,13 +70,24 @@ async def main():
     log_window.refresh()
     all_tasks[sabotage_victim].cancel()
 
+    log_window.nodelay(True)
+    # log_window.timeout(10000)
+    # import pydevd_pycharm
+    # pydevd_pycharm.settrace('localhost', port=31337, stdoutToServer=True, stderrToServer=True)
     while True:
+        # consume the whole input stream; if any is 'q', exit
+        while (key := log_window.getch()) != -1:
+            if key in (ord('q'), ord('Q')):
+                exit(0)
+
+        # if the input routine could be awaitable, you might be able to do:
+        #   for outcome in asyncio.as_completed((sleep(1), read_input()))
+        # or something... the intention is that finding input shouldn't be blocked by sleep
         await asyncio.sleep(1)
         log_window.refresh()
         for task in active_tasks[:]:
             if task.done():
-                # log_window.addstr(f"task {task.get_name()} over")
-                index = all_tasks.index(task)
+                index = all_tasks.index(task)  # poor scaling, but effective
                 try:
                     task.result()
                     success.append(task)
@@ -116,8 +118,9 @@ async def main():
     log_window.addstr(f"cancelled: {[t.get_name() for t in cancelled]}\n")
     log_window.addstr(f"errored: {[t.get_name() for t in errored]}\n")
     log_window.addstr(f"errored: {errored}\n")
-    # log_window.refresh()
+    log_window.refresh()
     log_window.addstr("Press any key to exit\n")
+    log_window.nodelay(False)
     log_window.getch()
 
 
@@ -149,13 +152,14 @@ def lets_a_go(curses_scr):
             1, 1
             )
     log_window.scrollok(True)
-    curses.noecho()
-    curses.cbreak()
+    # curses.noecho()
+    # curses.cbreak()
+    curses.curs_set(False)  # don't show the cursor
     stdscr.clear()
     log_window.addstr("hello, world!\n")
     # log_window.refresh()
 
-    asyncio.run(main(), debug=True)
+    asyncio.run(main(), debug=False)
     # stdscr.refresh()
 
 if __name__ == '__main__':
